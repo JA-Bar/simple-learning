@@ -1,0 +1,13 @@
+.coverage
+.mypy_cache
+.pytest_cache
+.ipynb_checkpoints/
+.vim
+
+planning.md
+docs/*
+!docs/.gitkeep
+
+*/__pycache__/*
+
+
