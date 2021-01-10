@@ -31,7 +31,7 @@ operation to be tracked, so automatic gradient calculation can be performed. Ten
 try to mimic pytorch, so the basic interface is very similar.
 
 ```python3
-from simple_learning import Tensor
+from simple_learning.tensor import Tensor
 
 
 # create Tensors
@@ -68,11 +68,14 @@ from simple_learning.function import Function
 
 
 class CustomFunction(Function):
+    # define how to compute the output
     @staticmethod
     def forward(context, my_np_array):
+        # you can save objects for the backward pass using the context
         context.save_for_backward(my_np_array.shape)
         return my_np_array + 42
 
+    # define how to compute the gradient
     @staticmethod
     def backward(context, output_grads):
         saved_shape, = context.saved_data
