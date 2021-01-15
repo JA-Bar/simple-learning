@@ -9,5 +9,6 @@ docs/*
 !docs/.gitkeep
 
 */__pycache__/*
+*.pyc
 
 

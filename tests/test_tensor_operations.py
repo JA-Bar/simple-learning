@@ -15,6 +15,20 @@ np.random.seed(42)
 A_TOLERANCE = 1e-6
 R_TOLERANCE = 1e-6
 
+pytestmark = pytest.mark.core
+
+# port of Robert Collins' test scenarios to check different cases easily (only on classes)
+def pytest_generate_tests(metafunc):
+    if metafunc.cls:
+        idlist = []
+        argvalues = []
+        for scenario in metafunc.cls.scenarios:
+            idlist.append(scenario[0])
+            items = scenario[1].items()
+            argnames = [x[0] for x in items]
+            argvalues.append([x[1] for x in items])
+        metafunc.parametrize(argnames, argvalues, ids=idlist, scope="class")
+
 
 # helper function to compare simple_learning and pytorch results
 def evaluate_simple_operations(constructor_function, constructor_args, function, verbose=False):
@@ -49,19 +63,6 @@ def evaluate_simple_operations(constructor_function, constructor_args, function,
             print('Expected gradient: ', expected_grad)
 
 
-# port of Robert Collins' test scenarios to check different cases easily (only on classes)
-def pytest_generate_tests(metafunc):
-    if metafunc.cls:
-        idlist = []
-        argvalues = []
-        for scenario in metafunc.cls.scenarios:
-            idlist.append(scenario[0])
-            items = scenario[1].items()
-            argnames = [x[0] for x in items]
-            argvalues.append([x[1] for x in items])
-        metafunc.parametrize(argnames, argvalues, ids=idlist, scope="class")
-
-
 # operations between two tensors
 class TestOperationsTwoTensors:
     scenario_1 = ('same_shape', {'constructor_function': np.random.randn,
@@ -69,7 +70,7 @@ class TestOperationsTwoTensors:
     scenario_2 = ('broadcasting', {'constructor_function': np.random.randn,
                                    'constructor_args': [(10, 5, 1), (10, 5, 3)]})
     scenario_3 = ('with_scalar', {'constructor_function': np.random.randn,
-                                   'constructor_args': [(10, 5, 3), (1,)]})
+                                  'constructor_args': [(10, 5, 3), (1,)]})
 
     scenarios = [scenario_1, scenario_2, scenario_3]
 
@@ -91,8 +92,12 @@ class TestOperationsTwoTensors:
 
 
 # specific dimensions for matmul
-def test_matmul():
-    evaluate_simple_operations(np.random.randn, [(3, 2), (2, 3)], lambda x, y: x @ y )
+@pytest.mark.parametrize('constructor_function, constructor_args', [
+                         (np.random.randn, [(3, 2), (2, 3)]),
+                         (np.random.randn, [(3, 1), (1, 3)])
+])
+def test_matmul(constructor_function, constructor_args):
+    evaluate_simple_operations(constructor_function, constructor_args, lambda x, y: x @ y)
 
 
 # operations on the Tensor itself
@@ -120,7 +125,7 @@ class TestOperationsOneTensor:
 
 
 # helper function to compose operations and check the result against pytorch
-def compose_operations(functions_and_args):
+def compose_operations(*functions_and_args):
     sl_result = None
     pt_result = None
     sl_leaves = []
@@ -179,14 +184,14 @@ all_operations = {
 
 
 def test_composition_1():
-    compose_operations([
+    compose_operations(
         [all_operations['sum'], (np.random.rand(3, 2), np.random.rand(3, 2))],
         [all_operations['mul'], (np.random.rand(3, 2))],
         [all_operations['pow'], (np.random.randn(3, 2))],
         [all_operations['matmul'], (np.random.randn(2, 3))],
         [all_operations['reshape'], ()],
         [all_operations['mean'], ()],
-    ])
+    )
 
 
 # debugging

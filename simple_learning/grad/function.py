@@ -1,5 +1,6 @@
+from simple_learning import Tensor
+
 from .context import Context
-from .tensor import Tensor
 
 
 class Function:
@@ -49,6 +50,9 @@ class Function:
         numpy arrays, generating the appropriate context, and returning another Tensor
         with the result of the operation.
         """
+        assert all([isinstance(arg, Tensor) for arg in args]), "All positional args to a "\
+                                                               "Function must be Tensors"
+
         requires_grad = any([tensor.requires_grad for tensor in args])
 
         context = Context(cls, parents=(args))

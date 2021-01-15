@@ -2,7 +2,7 @@ from typing import Any, Optional
 
 import numpy as np
 
-from .context import Context
+from .grad.context import Context
 
 
 class Tensor:
@@ -47,6 +47,10 @@ class Tensor:
     @staticmethod
     def ones(shape: tuple, requires_grad: bool = True):
         return Tensor(np.ones(shape), requires_grad=requires_grad)
+
+    @staticmethod
+    def zeros(shape: tuple, requires_grad: bool = True):
+        return Tensor(np.zeros(shape), requires_grad=requires_grad)
 
     @staticmethod
     def rand(*shape: int, requires_grad: bool = True):
@@ -101,56 +105,56 @@ class Tensor:
     # TODO: add the corresponding __r[op]__ and __i[op]__
     def __add__(self, other: Any):
         other = to_tensor(other)
-        from .functional import Add
+        from .grad.functional import Add
         return Add.apply(self, other)
 
     def __sub__(self, other: Any):
         other = to_tensor(other)
-        from .functional import Sub
+        from .grad.functional import Sub
         return Sub.apply(self, other)
 
     def __rsub__(self, other):
         other = to_tensor(other)
-        from .functional import Sub
+        from .grad.functional import Sub
         return Sub.apply(other, self)
 
     def __mul__(self, other: Any):
         other = to_tensor(other)
-        from .functional import Mul
+        from .grad.functional import Mul
         return Mul.apply(self, other)
 
     def __matmul__(self, other: Any):
         other = to_tensor(other)
-        from .functional import Matmul
+        from .grad.functional import Matmul
         return Matmul.apply(self, other)
 
     def __truediv__(self, other: Any):
         other = to_tensor(other)
-        from .functional import Div
+        from .grad.functional import Div
         return Div.apply(self, other)
 
     def __pow__(self, other: Any):
         other = to_tensor(other)
-        from .functional import Pow
+        from .grad.functional import Pow
         return Pow.apply(self, other)
 
     def reshape(self, shape: tuple):
         shape = to_tensor(shape)
-        from .functional import Reshape
+        from .grad.functional import Reshape
         return Reshape.apply(self, shape)
 
     def transpose(self, order=None):
         order = to_tensor(order)
-        from .functional import Transpose
+        from .grad.functional import Transpose
         return Transpose.apply(self, order)
 
     # operations on self
     def mean(self):
-        from .functional import Mean
+        from .grad.functional import Mean
         return Mean.apply(self)
 
     def sum(self, axis=None, keepdims=True):
-        from .functional import SumSelf
+        from .grad.functional import SumSelf
         return SumSelf.apply(self, axis=axis, keepdims=keepdims)
 
     # aliases
