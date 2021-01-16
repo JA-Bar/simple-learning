@@ -167,6 +167,20 @@ class SumSelf(Function):
         return np.zeros(input_shape, dtype='float32') + output_grads
 
 
+# nn functions
+class ReLU(Function):
+    @staticmethod
+    def forward(context, array):
+        mask = array > 0
+        context.save_for_backward(mask)
+        return array * mask
+
+    @staticmethod
+    def backward(context, output_grads):
+        mask, = context.saved_data
+        return output_grads * mask
+
+
 # nn module operations
 class Linear(Function):
     # i = out_features
