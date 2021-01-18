@@ -1,4 +1,4 @@
-# most basic functions are clones of Tinygrad's own implementation
+# basic functions are heavily inspired by Tinygrad's own implementation
 import numpy as np
 
 from .function import Function
@@ -101,7 +101,20 @@ class Matmul(Function):
     @staticmethod
     def backward(context, output_grads):
         x, y = context.saved_data
-        return unbroadcast(output_grads@y.T, x.shape), unbroadcast(x.T@output_grads, y.shape)
+        x_shape = x.shape
+        y_shape = y.shape
+
+        if len(x.shape) == 1:
+            x = np.expand_dims(x, axis=0)
+        if len(y.shape) == 1:
+            y = np.expand_dims(y, axis=1)
+        if len(output_grads.shape) == 1:
+            output_grads = np.expand_dims(output_grads, axis=0)
+
+        x_grad = unbroadcast(output_grads@y.T, x.shape)
+        y_grad = unbroadcast(x.T@output_grads, y.shape)
+
+        return x_grad.reshape(x_shape), y_grad.reshape(y_shape)
 
 
 class Mean(Function):
@@ -161,10 +174,14 @@ class SumSelf(Function):
 
     @staticmethod
     def backward(context, output_grads):
+        # the dimensions of the output grad are the ones from the original input
+        # regardless of keepdims
         axis, input_shape, keepdims = context.saved_data
         if not keepdims and input_shape != (1,):
             output_grads = np.expand_dims(output_grads, axis)
-        return np.zeros(input_shape, dtype='float32') + output_grads
+
+        grads = np.zeros(input_shape, dtype='float32') + output_grads
+        return grads.reshape(input_shape)
 
 
 # nn functions
@@ -179,6 +196,46 @@ class ReLU(Function):
     def backward(context, output_grads):
         mask, = context.saved_data
         return output_grads * mask
+
+
+class SoftMax(Function):
+    @staticmethod
+    def forward(context, array):
+        # if there are problems, look into the numerically stable implementation
+        input_shape = array.shape
+        n_dims = len(input_shape)
+
+        # treat all vectors as column vectors
+        if n_dims == 1:
+            array = np.expand_dims(array, axis=0)
+            n_dims = 2
+
+        exp = np.exp(array)
+        result = exp / np.sum(exp, axis=(n_dims-1), keepdims=True)
+
+        context.save_for_backward(input_shape, result)
+
+        return result.reshape(input_shape)
+
+    @staticmethod
+    def backward(context, output_grads):
+        input_shape, forward_result = context.saved_data
+
+        # great further explanation from https://stackoverflow.com/a/36280783
+        # compute J[i, j] for i != j resulting in -softmax_i * softmax_j
+        jacobian = -forward_result[..., np.newaxis] * forward_result[:, np.newaxis, :]
+
+        # get the diagonal indices (i=j) and fill them with softmax_i * (1 - softmax_i)
+        idx_y, idx_x = np.diag_indices_from(jacobian[0])
+        jacobian[:, idx_y, idx_x] = forward_result * (1. - forward_result)
+
+        # reduce the jacobian down to a gradient w.r.t. the inputs:
+        # a column of the jacobian tells you how every output is affected by a particular input,
+        # output_grads tell you how every output affects the target function,
+        # so by multiplying output_grads by column j and summing the result
+        # you will get the total influence of input j over all the outputs
+        output_grads = output_grads[..., np.newaxis, :]
+        return (output_grads @ jacobian).reshape(input_shape)
 
 
 # nn module operations

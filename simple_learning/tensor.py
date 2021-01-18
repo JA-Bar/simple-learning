@@ -99,7 +99,10 @@ class Tensor:
         return nodes
 
     def __repr__(self):
-        return f"< Tensor: {self.data} with grad: {self.grad} >"
+        function = getattr(self.context, 'function', None)
+        if function:
+            function = function.__name__
+        return f"<Tensor: {self.data} From function: {function}>"
 
     # basic operators
     # TODO: add the corresponding __r[op]__ and __i[op]__
