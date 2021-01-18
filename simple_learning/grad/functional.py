@@ -184,6 +184,32 @@ class SumSelf(Function):
         return grads.reshape(input_shape)
 
 
+class Exp(Function):
+    @staticmethod
+    def forward(context, array):
+        result = np.exp(array)
+        context.save_for_backward(result)
+        return result
+
+    @staticmethod
+    def backward(context, output_grads):
+        forward_result, = context.saved_data
+        return forward_result * output_grads
+
+
+class Log(Function):
+    @staticmethod
+    def forward(context, array):
+        context.save_for_backward(array)
+        return np.log(array)
+
+    @staticmethod
+    def backward(context, output_grads):
+        EPSILON = 1e-9
+        forward_result, = context.saved_data
+        return (1/(forward_result+EPSILON)) * output_grads
+
+
 # nn functions
 class ReLU(Function):
     @staticmethod

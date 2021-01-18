@@ -72,6 +72,13 @@ class TestOperationsOneTensor:
         evaluate_function_with_pytorch(lambda x: x.sum(axis=0, keepdims=True),
                                        lambda x: x.sum(axis=0, keepdims=True), constructor)
 
+    def test_exp(self, constructor):
+        evaluate_function_with_pytorch(lambda x: x.exp(), lambda x: x.exp(), constructor)
+
+    def test_log(self, constructor):
+        constructor[0] = np.random.rand  # overriding function to keep the tests real valued
+        evaluate_function_with_pytorch(lambda x: x.log(), lambda x: x.log(), constructor)
+
 
 # # helper function to compose operations and check the result against pytorch
 def compose_operations(*functions_and_args):

@@ -160,6 +160,14 @@ class Tensor:
         from .grad.functional import SumSelf
         return SumSelf.apply(self, axis=axis, keepdims=keepdims)
 
+    def log(self):
+        from .grad.functional import Log
+        return Log.apply(self)
+
+    def exp(self):
+        from .grad.functional import Exp
+        return Exp.apply(self)
+
     # aliases
     def dot(self, other: Any):
         return self @ other
