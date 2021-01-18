@@ -1,14 +1,17 @@
+from simple_learning.tensor import to_tensor
+
 from .parameter import Parameter
 
 
 class Module:
     def __init__(self):
-        # enforce the initialization of Module on subclasses
+        # TODO: enforce the initialization of Module on subclasses
         self._parameters = {}
         self._modules = {}
         self._attributes = set()
+        self.train = True
 
-    def forward(self):
+    def forward(self, x):
         raise NotImplementedError
 
     def get_named_parameters(self):
@@ -35,6 +38,7 @@ class Module:
         return list(self.get_named_parameters().values())
 
     def __call__(self, *args, **kwargs):
+        args = [to_tensor(arg) for arg in args]
         return self.forward(*args, *kwargs)
 
     def __getattr__(self, name):

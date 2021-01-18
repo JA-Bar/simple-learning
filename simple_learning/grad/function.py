@@ -3,6 +3,10 @@ from simple_learning import Tensor
 from .context import Context
 
 
+# global variable that controls whether to calculate gradients or not
+grads_enabled = True
+
+
 class Function:
     """Interface for custom functions to be added to a computational graph.
 
@@ -60,6 +64,9 @@ class Function:
         args = [tensor.data for tensor in args]
         result = cls.forward(context, *args, **kwargs)
 
+        if not grads_enabled:
+            requires_grad = False
+
         if not requires_grad:
             context = None
 
@@ -75,4 +82,18 @@ class Function:
         if not isinstance(result, (list, tuple)):
             result = (result, )
         return result
+
+
+class no_grad:
+    """Context manager to disable gradient tracking for all operations inside it."""
+    def __init__(self):
+        global grads_enabled
+        grads_enabled = False
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, *args):
+        global grads_enabled
+        grads_enabled = True
 
