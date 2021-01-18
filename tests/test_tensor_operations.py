@@ -1,130 +1,79 @@
-import inspect
-import os
-import sys
+import operator
 
 import numpy as np
 import numpy.testing as np_test
+
 import pytest
 import torch
 
-sys.path.insert(0, os.path.abspath('.'))
-from simple_learning.tensor import Tensor
+import simple_learning as sl
+
+from helper_commons import evaluate_function_with_pytorch
 
 np.random.seed(42)
+
 # absolute and relative tolerances
 A_TOLERANCE = 1e-6
 R_TOLERANCE = 1e-6
 
 pytestmark = pytest.mark.core
 
-# port of Robert Collins' test scenarios to check different cases easily (only on classes)
-def pytest_generate_tests(metafunc):
-    if metafunc.cls:
-        idlist = []
-        argvalues = []
-        for scenario in metafunc.cls.scenarios:
-            idlist.append(scenario[0])
-            items = scenario[1].items()
-            argnames = [x[0] for x in items]
-            argvalues.append([x[1] for x in items])
-        metafunc.parametrize(argnames, argvalues, ids=idlist, scope="class")
-
-
-# helper function to compare simple_learning and pytorch results
-def evaluate_simple_operations(constructor_function, constructor_args, function, verbose=False):
-    # initialize numpy arrays to be used as arguments of the function
-    args_arrays = [constructor_function(*args) for args in constructor_args]
-
-    # apply simple_learning function to Tensors
-    sl_args = [Tensor(arg.copy()) for arg in args_arrays]
-    sl_result = function(*sl_args)
-    sl_result.backward(np.ones_like(sl_result.data))
-
-    # apply the same function to pytorch's Tensors
-    pt_args = [torch.tensor(arg.copy().astype('float32'), requires_grad=True) for arg in args_arrays]
-    pt_result = function(*pt_args)
-    pt_result.backward(torch.ones_like(pt_result))
-
-    # check if the forward pass is correct
-    obtained_result = sl_result.data
-    expected_result = pt_result.detach().numpy()
-    np_test.assert_allclose(obtained_result, expected_result, R_TOLERANCE, A_TOLERANCE)
-    if verbose:
-        print('Actual result: ', obtained_result)
-        print('Expected result: ', expected_result)
-
-    # check if the backward pass if correct (the arguments' gradients)
-    for sl_a, pt_a in zip(sl_args, pt_args):
-        obtained_grad = sl_a.grad
-        expected_grad = pt_a.grad.numpy()
-        np_test.assert_allclose(obtained_grad, expected_grad, R_TOLERANCE, A_TOLERANCE)
-        if verbose:
-            print('Actual gradient: ', obtained_grad)
-            print('Expected gradient: ', expected_grad)
-
 
 # operations between two tensors
 class TestOperationsTwoTensors:
-    scenario_1 = ('same_shape', {'constructor_function': np.random.randn,
-                                 'constructor_args': [(3, 2), (3, 2)]})
-    scenario_2 = ('broadcasting', {'constructor_function': np.random.randn,
-                                   'constructor_args': [(10, 5, 1), (10, 5, 3)]})
-    scenario_3 = ('with_scalar', {'constructor_function': np.random.randn,
-                                  'constructor_args': [(10, 5, 3), (1,)]})
+    scenario_1 = ('scalar', {'constructor': [np.random.randn, (1, ), (1, )]})
+    scenario_2 = ('one_dimensional', {'constructor': [np.random.randn, (5, ), (5, )]})
+    scenario_3 = ('row_vector', {'constructor': [np.random.randn, (1, 5), (1, 5)]})
+    scenario_4 = ('multiple_vectors', {'constructor': [np.random.randn, (10, 5), (10, 5)]})
 
-    scenarios = [scenario_1, scenario_2, scenario_3]
+    scenarios = [scenario_1, scenario_2, scenario_3, scenario_4]
 
-    def test_sum(self, constructor_function, constructor_args):
-        evaluate_simple_operations(constructor_function, constructor_args, lambda x, y: x + y)
+    def test_sum(self, constructor):
+        evaluate_function_with_pytorch(operator.add, operator.add, constructor)
 
-    def test_sub(self, constructor_function, constructor_args):
-        evaluate_simple_operations(constructor_function, constructor_args, lambda x, y: x - y)
+    def test_sub(self, constructor):
+        evaluate_function_with_pytorch(operator.sub, operator.sub, constructor)
 
-    def test_mul(self, constructor_function, constructor_args):
-        evaluate_simple_operations(constructor_function, constructor_args, lambda x, y: x * y)
+    def test_mul(self, constructor):
+        evaluate_function_with_pytorch(operator.mul, operator.mul, constructor)
 
-    def test_div(self, constructor_function, constructor_args):
-        evaluate_simple_operations(constructor_function, constructor_args, lambda x, y: x / y)
+    def test_div(self, constructor):
+        evaluate_function_with_pytorch(operator.truediv, operator.truediv, constructor)
 
-    def test_pow(self, constructor_function, constructor_args):
-        constructor_function = np.random.rand  # overriding function to keep the tests real valued
-        evaluate_simple_operations(constructor_function, constructor_args, lambda x, y: x**y)
+    def test_pow(self, constructor):
+        constructor[0] = np.random.rand  # overriding function to keep the tests real valued
+        evaluate_function_with_pytorch(operator.pow, operator.pow, constructor)
 
-
-# specific dimensions for matmul
-@pytest.mark.parametrize('constructor_function, constructor_args', [
-                         (np.random.randn, [(3, 2), (2, 3)]),
-                         (np.random.randn, [(3, 1), (1, 3)])
-])
-def test_matmul(constructor_function, constructor_args):
-    evaluate_simple_operations(constructor_function, constructor_args, lambda x, y: x @ y)
+    def test_matmul(self, constructor):
+        constructor[-1] = constructor[-1][::-1]  # change the size of last argument to match matmul
+        evaluate_function_with_pytorch(operator.matmul, operator.matmul, constructor)
 
 
-# operations on the Tensor itself
+# # operations on the Tensor itself
 class TestOperationsOneTensor:
-    scenario_1 = ('scalar', {'constructor_function': np.random.randn,
-                             'constructor_args': [(1,)]})
-    scenario_2 = ('two_dims', {'constructor_function': np.random.randn,
-                               'constructor_args': [(2, 3)]})
-    scenario_3 = ('three_dims', {'constructor_function': np.random.randn,
-                                 'constructor_args': [(10, 5, 3)]})
+    scenario_1 = ('scalar', {'constructor': [np.random.randn, (1, )]})
+    scenario_2 = ('one_dimensional', {'constructor': [np.random.randn, (5, )]})
+    scenario_3 = ('row_vector', {'constructor': [np.random.randn, (1, 5)]})
+    scenario_4 = ('multiple_vectors', {'constructor': [np.random.randn, (10, 5)]})
 
-    scenarios = [scenario_1, scenario_2, scenario_3]
+    scenarios = [scenario_1, scenario_2, scenario_3, scenario_4]
 
-    def test_mean(self, constructor_function, constructor_args):
-        evaluate_simple_operations(constructor_function, constructor_args, lambda x: x.mean())
+    def test_mean(self, constructor):
+        evaluate_function_with_pytorch(lambda x: x.mean(), lambda x: x.mean(), constructor)
 
-    def test_reshape(self, constructor_function, constructor_args):
-        evaluate_simple_operations(constructor_function, constructor_args, lambda x: x.reshape((1, -1)))
+    def test_reshape(self, constructor):
+        evaluate_function_with_pytorch(lambda x: x.reshape((-1, 1)),
+                                       lambda x: x.reshape((-1, 1)), constructor)
 
-    def test_transpose(self, constructor_function, constructor_args):
-        evaluate_simple_operations(constructor_function, constructor_args, lambda x: x.T)
+    def test_transpose(self, constructor):
+        evaluate_function_with_pytorch(lambda x: x.T, lambda x: x.T, constructor)
 
-    def test_sum_self(self, constructor_function, constructor_args):
-        evaluate_simple_operations(constructor_function, constructor_args, lambda x: x.sum(axis=0, keepdims=True))
+    def test_sum_self(self, constructor):
+        evaluate_function_with_pytorch(lambda x: x.sum(axis=0, keepdims=True),
+                                       lambda x: x.sum(axis=0, keepdims=True), constructor)
 
 
-# helper function to compose operations and check the result against pytorch
+# # helper function to compose operations and check the result against pytorch
 def compose_operations(*functions_and_args):
     sl_result = None
     pt_result = None
@@ -136,7 +85,7 @@ def compose_operations(*functions_and_args):
             args = (args,)
 
         # convert arguments to Tensors
-        sl_args = [Tensor(arg.copy()) for arg in args]
+        sl_args = [sl.Tensor(arg.copy()) for arg in args]
         pt_args = [torch.tensor(arg.copy().astype('float32'), requires_grad=True) for arg in args]
 
         # add the arguments to the list of leaf Tensors
@@ -169,34 +118,13 @@ def compose_operations(*functions_and_args):
         np_test.assert_allclose(obtained_grad, expected_grad, R_TOLERANCE, A_TOLERANCE)
 
 
-all_operations = {
-    'sum': lambda x, y: x + y,
-    'sub': lambda x, y: x - y,
-    'mul': lambda x, y: x * y,
-    'div': lambda x, y: x / y,
-    'pow': lambda x, y: x**y,
-    'matmul': lambda x, y: x @ y,
-    'mean': lambda x: x.mean(),
-    'reshape': lambda x: x.reshape((1, -1)),
-    'transpose': lambda x: x.T,
-    'sum_self': lambda x: x.sum(axis=0, keepdims=True)
-}
-
-
 def test_composition_1():
     compose_operations(
-        [all_operations['sum'], (np.random.rand(3, 2), np.random.rand(3, 2))],
-        [all_operations['mul'], (np.random.rand(3, 2))],
-        [all_operations['pow'], (np.random.randn(3, 2))],
-        [all_operations['matmul'], (np.random.randn(2, 3))],
-        [all_operations['reshape'], ()],
-        [all_operations['mean'], ()],
+        [operator.add, (np.random.rand(3, 2), np.random.rand(3, 2))],
+        [operator.mul, (np.random.rand(3, 2))],
+        [operator.pow, (np.random.randn(3, 2))],
+        [operator.matmul, (np.random.randn(2, 3))],
+        [lambda x: x.reshape((-1, 1)), ()],
+        [lambda x: x.mean(), ()],
     )
-
-
-# debugging
-if __name__ == '__main__':
-    module_functions = inspect.getmembers(sys.modules[__name__], inspect.isfunction)
-    testing_functions = [name for name, value in module_functions if name.startswith('test_')]
-    print(testing_functions)
 
