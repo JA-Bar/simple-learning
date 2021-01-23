@@ -28,7 +28,7 @@ class Tensor:
 
     # simple utility
     def detach(self):
-        return Tensor(self.data, requires_grad=False)
+        return Tensor(self.data, context=None)
 
     # properties
     @property
@@ -106,6 +106,7 @@ class Tensor:
 
     # basic operators
     # TODO: add the corresponding __r[op]__ and __i[op]__
+    # TODO: add comparisons operators
     def __add__(self, other: Any):
         other = to_tensor(other)
         from .grad.functional import Add

@@ -72,6 +72,10 @@ class TestOperationsOneTensor:
         evaluate_function_with_pytorch(lambda x: x.sum(axis=0, keepdims=True),
                                        lambda x: x.sum(axis=0, keepdims=True), constructor)
 
+    def test_sum_self_keepdims(self, constructor):
+        evaluate_function_with_pytorch(lambda x: x.sum(axis=0, keepdims=False),
+                                       lambda x: x.sum(axis=0, keepdims=False), constructor)
+
     def test_exp(self, constructor):
         evaluate_function_with_pytorch(lambda x: x.exp(), lambda x: x.exp(), constructor)
 
@@ -134,4 +138,33 @@ def test_composition_1():
         [lambda x: x.reshape((-1, 1)), ()],
         [lambda x: x.mean(), ()],
     )
+
+
+# other functionality
+def test_detach():
+    tensor_leaf = sl.Tensor([1, 2, 3, 4])
+    tensor_interim = tensor_leaf + 100
+    interim_detached = tensor_interim.detach()
+
+    assert (interim_detached.data == tensor_interim.data).all()
+    assert interim_detached.context is None
+
+
+def test_function():
+    tensor_leaf = sl.Tensor([1, 2, 3, 4])
+    tensor_interim = tensor_leaf + 100
+
+    assert tensor_interim.function == sl.grad.functional.Add
+
+
+def test_numel():
+    array = np.random.randn(10, 10)
+    tensor = sl.Tensor(array)
+    assert tensor.numel == array.size
+
+
+def test_ones():
+    array = np.ones((100,))
+    assert (sl.Tensor.ones((100,)).data == array).all()
+
 
