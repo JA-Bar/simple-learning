@@ -30,6 +30,12 @@ class Tensor:
     def detach(self):
         return Tensor(self.data, context=None)
 
+    def item(self):
+        if not self.shape == (1,):
+            raise ValueError("Only one element tensors can be converted to Python scalars.")
+
+        return self.data.item()
+
     # properties
     @property
     def shape(self):
@@ -73,6 +79,7 @@ class Tensor:
         # traverse each node, filling its corresponding parents' gradient
         for node in reversed(all_nodes):
             parents_grads = node.context.function.apply_backward(node.context, node.grad)
+
             for parent, p_grad in zip(node.context.parents, parents_grads):
                 if p_grad is None:
                     continue

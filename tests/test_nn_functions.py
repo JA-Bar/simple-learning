@@ -31,4 +31,3 @@ class TestNNFunctions:
         torch_function = lambda x: (torch_F.softmax(x, dim=-1)**4.2).sum()
         evaluate_function_with_pytorch(sl_function, torch_function, constructor)
 
-

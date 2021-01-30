@@ -10,6 +10,18 @@ __all__ = ['Linear']
 
 
 class Linear(Module):
+    """Apply an affine transformation (bias=True) or linear transformation (bias=False)
+    to a some input, where the weight matrix has its values initialized by the Uniform He method.
+
+    Args:
+        in_features: size of the input features.
+        out_features: size of the output features.
+        bias: wether to add a bias weight or not.
+
+    Shapes:
+        input: (N, I) where N are the number of samples and I the input features.
+        output: (N, O) where O are the output features.
+    """
     def __init__(self, in_features: int, out_features: int, bias=True):
         super().__init__()
 

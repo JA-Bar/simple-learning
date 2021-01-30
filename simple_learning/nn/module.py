@@ -4,6 +4,26 @@ from .parameter import Parameter
 
 
 class Module:
+    """Interface for custom modules.
+
+    Every set of operations that needs to hold some state in the form of parameters
+    must be implemented as a subclass of Module.
+
+    Custom Modules shouls implement two methods - __init__: where the __init__ method
+    of the base class Module must be called first, and forward: where the calculation
+    of the custom module's output must be defined.
+
+    The resulting custom Module will be a callable, and to compute the output of the module
+    it's only necessary to call the module with whatever input was defined in forward as an
+    argument.
+
+    The base class Module also provides methods such as get_parameters to recursively
+    list all the parameters under the module, as well as the ones under sub-modules that
+    are inside the module.
+
+    get_named_parameters does the same thing, but provides a unique name for every parameter
+    to facilitate things such as state saving.
+    """
     def __init__(self):
         # TODO: enforce the initialization of Module on subclasses
         self._parameters = {}

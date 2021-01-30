@@ -10,5 +10,6 @@ docs/*
 
 */__pycache__/*
 *.pyc
+examples/MNIST/
 
 

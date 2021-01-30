@@ -10,7 +10,7 @@ grads_enabled = True
 class Function:
     """Interface for custom functions to be added to a computational graph.
 
-    Any custom functions should inherit from Function and implement two mandatory
+    Any custom functions should subclass Function and implement two mandatory
     static methods: forward and backward.
 
     The function should be called by using the apply method, which will return

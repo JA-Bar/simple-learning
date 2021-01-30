@@ -4,6 +4,11 @@ from simple_learning import Tensor
 
 
 class Parameter(Tensor):
+    """Tensor-like class designated to be used for the parameters of an nn.Module.
+
+    The main difference between Parameter and Tensor is that the optimizers of the
+    nn modue will only update Parameters, not Tensors directly.
+    """
     def __init__(self, data: Any, requires_grad=True, parameter_group='all'):
         super().__init__(data, requires_grad=requires_grad)
 

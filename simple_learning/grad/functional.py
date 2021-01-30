@@ -1,11 +1,11 @@
-# basic functions are heavily inspired by Tinygrad's own implementation
+# basic functions are inspired by Tinygrad's own implementation
 import numpy as np
 
 from .function import Function
 
 
 def unbroadcast(out, in_shape):
-    """Sums the gradients of the output in the case that broadcasting was performed
+    """Sum the gradients of the output in the case that broadcasting was performed
     during the calculation of a result. This effectively avoids explicitly splitting
     a broadcasting operation into several clone modules beforehand.
     """
@@ -23,6 +23,7 @@ def unbroadcast(out, in_shape):
         temp_axis = [n if i == index else 1 for i in range(len(out.shape))]
         in_shape = temp_axis[::-1]
 
+    # finally, sum the axis where broadcasting took place
     sum_axis = tuple([dim for dim in range(len(in_shape)) if in_shape[dim]==1 and out.shape[dim]>1])
     return out.sum(axis=sum_axis).reshape(original_in_shape)
 
@@ -30,51 +31,58 @@ def unbroadcast(out, in_shape):
 # basic tensor operations
 class Add(Function):
     @staticmethod
-    def forward(context, x, y):
-        context.save_for_backward(x.shape, y.shape)
-        return x + y
+    def forward(context, x1, x2):
+        context.save_for_backward(x1.shape, x2.shape)
+        return x1 + x2
 
     @staticmethod
     def backward(context, output_grads):
-        x_shape, y_shape = context.saved_data
-        return unbroadcast(output_grads, x_shape), unbroadcast(output_grads, y_shape)
+        # y = x1 + x2 ||| dy/dx1 = dy/dx2 = 1
+        # the local gradient of the sum operator will be 1 for both inputs. Now just multiply the
+        # local gradient with the incoming gradient to get the gradient of the target function
+        # w.r.t. the inputs and keep the chain rule going
+        x1_shape, x2_shape = context.saved_data
+        return unbroadcast(output_grads, x1_shape), unbroadcast(output_grads, x2_shape)
 
 
 class Sub(Function):
     @staticmethod
-    def forward(context, x, y):
-        context.save_for_backward(x.shape, y.shape)
-        return x - y
+    def forward(context, x1, x2):
+        context.save_for_backward(x1.shape, x2.shape)
+        return x1 - x2
 
     @staticmethod
     def backward(context, output_grads):
-        x_shape, y_shape = context.saved_data
-        return unbroadcast(output_grads, x_shape), unbroadcast(-output_grads, y_shape)
+        # y = x1 - x2 ||| dy/x1 = 1    dy/x2 = -1
+        x1_shape, x2_shape = context.saved_data
+        return unbroadcast(output_grads, x1_shape), unbroadcast(-output_grads, x2_shape)
 
 
 class Mul(Function):
     @staticmethod
-    def forward(context, x, y):
-        context.save_for_backward(x, y)
-        return x * y
+    def forward(context, x1, x2):
+        context.save_for_backward(x1, x2)
+        return x1 * x2
 
     @staticmethod
     def backward(context, output_grads):
-        x, y = context.saved_data
-        return unbroadcast(y * output_grads, x.shape), unbroadcast(x * output_grads, y.shape)
+        # y = x1 * x2 ||| dy/x1 = x2    dy/x2 = x1
+        x1, x2 = context.saved_data
+        return unbroadcast(x2 * output_grads, x1.shape), unbroadcast(x1 * output_grads, x2.shape)
 
 
 class Div(Function):
     @staticmethod
-    def forward(context, x, y):
-        context.save_for_backward(x, y)
-        return x / y
+    def forward(context, x1, x2):
+        context.save_for_backward(x1, x2)
+        return x1 / x2
 
     @staticmethod
     def backward(context, output_grads):
-        x, y = context.saved_data
-        return (unbroadcast((1/y) * output_grads, x.shape),
-                unbroadcast(x * (-1/y**2) * output_grads, y.shape))
+        # y = x1 / x2 ||| dy/x1 = (1x2)    dy/x2 = x1 * d(1/x2)/x2 = x1 * -(1/x2**2)
+        x1, x2 = context.saved_data
+        return (unbroadcast((1/x2) * output_grads, x1.shape),
+                unbroadcast(x1 * (-1/x2**2) * output_grads, x2.shape))
 
 
 class Pow(Function):
@@ -87,7 +95,7 @@ class Pow(Function):
     def backward(context, output_grads):
         x, y = context.saved_data
         x_non_negative = x.copy()
-        x_non_negative[x_non_negative<0] = np.nan
+        x_non_negative[x_non_negative < 0] = np.nan
         return (unbroadcast(y * (x**(y-1.0)) * output_grads, x.shape),
                 unbroadcast((x**y) * np.log(x_non_negative) * output_grads, y.shape))
 
@@ -206,8 +214,8 @@ class Log(Function):
     @staticmethod
     def backward(context, output_grads):
         EPSILON = 1e-9
-        forward_result, = context.saved_data
-        return (1/(forward_result+EPSILON)) * output_grads
+        forward_input, = context.saved_data
+        return (1/(forward_input+EPSILON)) * output_grads
 
 
 # nn functions
@@ -262,6 +270,36 @@ class SoftMax(Function):
         # you will get the total influence of input j over all the outputs
         output_grads = output_grads[..., np.newaxis, :]
         return (output_grads @ jacobian).reshape(input_shape)
+
+
+class CrossEntropy(Function):
+    @staticmethod
+    def forward(context, in_tensor, targets):
+        # targets will be used as indices so integers are required
+        targets = targets.astype('int')
+        context.save_for_backward(in_tensor, targets)
+
+        # select only the inputs that will affect the loss
+        n = in_tensor.shape[0]
+        inputs_in_target_indices = in_tensor[range(n), targets]
+
+        # apply cross-entropy loss to those inputs and return the average
+        log_result = -np.log(inputs_in_target_indices)
+        return np.sum(log_result) * (1/n)
+
+    @staticmethod
+    def backward(context, output_grads):
+        EPSILON = 1e-9
+        in_tensor, targets = context.saved_data
+
+        n = in_tensor.shape[0]
+
+        # every local gradient will be 0, except the ones corresponding to the inputs
+        # used to calculate the forward pass, those will have regular -1/x grad
+        local_grads = np.zeros_like(in_tensor)
+        local_grads[range(n), targets] = -1/(in_tensor[range(n), targets]+EPSILON)
+        local_grads *= (1/n)
+        return local_grads * output_grads
 
 
 # nn module operations
