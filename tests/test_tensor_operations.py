@@ -21,10 +21,10 @@ pytestmark = pytest.mark.core
 
 # operations between two tensors
 class TestOperationsTwoTensors:
-    scenario_1 = ('scalar', {'constructor': [np.random.randn, (1, ), (1, )]})
-    scenario_2 = ('one_dimensional', {'constructor': [np.random.randn, (5, ), (5, )]})
-    scenario_3 = ('row_vector', {'constructor': [np.random.randn, (1, 5), (1, 5)]})
-    scenario_4 = ('multiple_vectors', {'constructor': [np.random.randn, (10, 5), (10, 5)]})
+    scenario_1 = ('scalar', {'constructor': [np.random.randn, [(1, ), (1, )]]})
+    scenario_2 = ('one_dimensional', {'constructor': [np.random.randn, [(5, ), (5, )]]})
+    scenario_3 = ('row_vector', {'constructor': [np.random.randn, [(1, 5), (1, 5)]]})
+    scenario_4 = ('multiple_vectors', {'constructor': [np.random.randn, [(10, 5), (10, 5)]]})
 
     scenarios = [scenario_1, scenario_2, scenario_3, scenario_4]
 
@@ -45,16 +45,16 @@ class TestOperationsTwoTensors:
         evaluate_function_with_pytorch(operator.pow, operator.pow, constructor)
 
     def test_matmul(self, constructor):
-        constructor[-1] = constructor[-1][::-1]  # change the size of last argument to match matmul
+        constructor[1][-1] = constructor[1][-1][::-1]  # change the size of last argument to match matmul
         evaluate_function_with_pytorch(operator.matmul, operator.matmul, constructor)
 
 
 # # operations on the Tensor itself
 class TestOperationsOneTensor:
-    scenario_1 = ('scalar', {'constructor': [np.random.randn, (1, )]})
-    scenario_2 = ('one_dimensional', {'constructor': [np.random.randn, (5, )]})
-    scenario_3 = ('row_vector', {'constructor': [np.random.randn, (1, 5)]})
-    scenario_4 = ('multiple_vectors', {'constructor': [np.random.randn, (10, 5)]})
+    scenario_1 = ('scalar', {'constructor': [np.random.randn, [(1, )]]})
+    scenario_2 = ('one_dimensional', {'constructor': [np.random.randn, [(5, )]]})
+    scenario_3 = ('row_vector', {'constructor': [np.random.randn, [(1, 5)]]})
+    scenario_4 = ('multiple_vectors', {'constructor': [np.random.randn, [(10, 5)]]})
 
     scenarios = [scenario_1, scenario_2, scenario_3, scenario_4]
 

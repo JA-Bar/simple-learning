@@ -1,6 +1,7 @@
 .coverage
 .mypy_cache
 .pytest_cache
+.python-version
 .ipynb_checkpoints/
 .vim
 

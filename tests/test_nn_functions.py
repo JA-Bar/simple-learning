@@ -15,10 +15,10 @@ R_TOLERANCE = 1e-6
 
 
 class TestNNFunctions:
-    scenario_1 = ('scalar', {'constructor': [np.random.randn, (1, )]})
-    scenario_2 = ('one_dimensional', {'constructor': [np.random.randn, (5, )]})
-    scenario_3 = ('row_vector', {'constructor': [np.random.randn, (1, 5)]})
-    scenario_4 = ('multiple_vectors', {'constructor': [np.random.randn, (10, 5)]})
+    scenario_1 = ('scalar', {'constructor': [np.random.randn, [(1, )]]})
+    scenario_2 = ('one_dimensional', {'constructor': [np.random.randn, [(5, )]]})
+    scenario_3 = ('row_vector', {'constructor': [np.random.randn, [(1, 5)]]})
+    scenario_4 = ('multiple_vectors', {'constructor': [np.random.randn, [(10, 5)]]})
 
     scenarios = [scenario_1, scenario_2, scenario_3, scenario_4]
 
@@ -29,5 +29,22 @@ class TestNNFunctions:
         # adding extra pow function to make the softmax derivatives bigger
         sl_function = lambda x: (sl_F.softmax(x)**4.2).sum()
         torch_function = lambda x: (torch_F.softmax(x, dim=-1)**4.2).sum()
+        evaluate_function_with_pytorch(sl_function, torch_function, constructor)
+
+
+class TestNNLossFunctions:
+    scenario_1 = ('row_vector', {'constructor': [(np.random.randn, np.random.randint),
+                                                 ((1, 5), (0, 5, (1,)))]})
+    scenario_2 = ('multiple_vectors', {'constructor': [(np.random.randn, np.random.randint),
+                                                       ((10, 5), (0, 5, (10,)))]})
+
+    scenarios = [scenario_1, scenario_2]
+    # scenarios = [scenario_1]
+
+
+    def test_cross_entropy(self, constructor):
+        # cross_entropy in pytorch combines softmax and the cross-entropy function
+        sl_function = lambda x, labels: sl_F.cross_entropy(sl_F.softmax(x), labels.detach())
+        torch_function = lambda x, labels: torch_F.cross_entropy(x, labels.long())
         evaluate_function_with_pytorch(sl_function, torch_function, constructor)
 
